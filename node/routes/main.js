@@ -68,6 +68,30 @@ router.post('/api/reset-session', async (req, res) => {
     }
 });
 
+  // 새 세션 시작 함수
+  async function resetSession() {
+    try {
+        const response = await fetch('/api/reset-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_id: sessionId
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // 페이지 새로고침
+            location.reload();
+        }
+    } catch (error) {
+        console.error('세션 초기화 오류:', error);
+        alert('새 세션을 시작하는 중 오류가 발생했습니다.');
+    }
+}
+
 // 필러 워드 목록 조회 - FastAPI로 프록시
 router.get('/api/filler-words', async (req, res) => {
     try {

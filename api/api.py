@@ -12,6 +12,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from config import FILLER_WORDS, IDEAL_WPM, SLOW_THRESHOLD, FAST_THRESHOLD
 from dotenv import load_dotenv
+import boto3
 
 # 환경변수 로드
 load_dotenv()
@@ -111,6 +112,7 @@ class SpeechAnalyzer:
         wpm = min(wpm, 250)  # 최대 WPM을 250으로 제한 (인간의 일반적인 발화 속도 범위 내로 제한)
 
         used_fillers = {k: v for k, v in self.filler_counts.items() if v > 0}
+        total_fillers = sum(used_fillers.values())
 
         if wpm < SLOW_THRESHOLD:
             wpm_feedback = "조금 더 빠르게 말씀해보시는 건 어떨까요?"
@@ -118,16 +120,33 @@ class SpeechAnalyzer:
             wpm_feedback = "조금 더 천천히, 또박또박 말씀해보세요."
         else:
             wpm_feedback = "적절한 속도로 말하고 계십니다."
-
+            
+        # S3에 저장
+        s3_url = None
+        if s3_client:
+            result_data = {
+                "session_id": self.session_id,
+                "analysis": {
+                    "word_count": self.word_count,
+                    "wpm": round(wpm, 2),
+                    "filler_words": used_fillers,
+                    "total_fillers": total_fillers,
+                    "speech_duration": round(elapsed_time, 2),
+                    "analyzed_at": datetime.utcnow().isoformat()
+                }
+        }
+            s3_url = upload_to_s3(result_data, f"{self.session_id}.json")
+    
         return {
             "session_id": self.session_id,
-            "full_text": self.full_text.strip(),
             "word_count": self.word_count,
             "wpm": round(wpm, 2),
             "wpm_feedback": wpm_feedback,
             "filler_words": used_fillers,
-            "total_fillers": sum(used_fillers.values()),
-            "speech_duration": round(time.time() - self.start_time, 2),
+            "total_fillers": total_fillers,
+            "speech_duration": round(elapsed_time, 2),
+            "s3_url": s3_url,  # S3 URL 추가
+            "full_text": self.full_text  # AI 피드백 생성을 위해 추가
         }
 
     @property
@@ -139,7 +158,6 @@ class SpeechAnalyzer:
         # 세션이 변경될 때마다 start_time을 현재 시간으로 재설정
         if self._session_id != value:
             self.start_time = time.time()
-        self._session_id = value
         self._session_id = value
 
 # ====================
@@ -166,12 +184,14 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
         
         # 필러 단어 사용량 평가
         filler_assessment = "적절함"
-        filler_ratio = (total_fillers / word_count * 100) if word_count > 0 else 0
-        if filler_ratio > 5:
-            filler_assessment = "다소 많음"
-        elif filler_ratio > 10:
+        filler_ratio = (total_fillers / word_count * 100) if word_count > 0 else 0        
+        if filler_ratio > 10:
             filler_assessment = "많이 사용됨"
-        
+        elif filler_ratio > 5:
+            filler_assessment = "다소 많음"
+        else:
+            filler_assessment = "적절함"
+
         # 프롬프트 구성
         prompt = f"""
         당신은 발표 코칭 전문가입니다. 다음 발화 분석 결과를 바탕으로 전문가 같은 피드백을 제공해주세요.
@@ -182,7 +202,7 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
         [분석 결과]
         1. 발화 속도: {wpm:.1f} WPM ({speed_assessment})
            - {wpm_feedback}
-           
+
         2. 필러 단어 사용량: {total_fillers}회 ({filler_assessment})
         """
         
@@ -269,6 +289,35 @@ def save_result_to_db(result: dict) -> dict:
     except Exception as e:
         print(f"MongoDB 저장 실패: {e}")
         return result
+
+
+# S3 클라이언트 초기화 (S3 사용 시)
+s3_client = None
+S3_BUCKET = os.getenv('S3_BUCKET_NAME')
+if os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY') and S3_BUCKET:
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+        region_name=os.getenv('AWS_REGION', 'ap-southeast-1')
+    )
+
+def upload_to_s3(data: dict, file_name: str) -> Optional[str]:
+    """S3에 파일 업로드"""
+    if not s3_client:
+        return None
+        
+    try:
+        s3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key=f"speech_analysis/{file_name}",
+            Body=json.dumps(data, ensure_ascii=False, indent=2),
+            ContentType='application/json'
+        )
+        return f"https://{S3_BUCKET}.s3.amazonaws.com/speech_analysis/{file_name}"
+    except Exception as e:
+        print(f"S3 업로드 오류: {e}")
+        return None
 
 # ====================
 # 📌 API 라우팅

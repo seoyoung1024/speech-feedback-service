@@ -162,7 +162,7 @@
                 </div>
                 
                 <div class="text-center mt-4 text-muted small">
-                    <p>© 2023 발표 피드백 도우미. All rights reserved.</p>
+                    <p>© 2025 발표 피드백 도우미. All rights reserved.</p>
                 </div>
             </div>
         </div>
@@ -176,22 +176,7 @@
     <!-- Main JavaScript -->
     <script src="js/main_v1.js"></script>
     
-    <script>
-        // 다크 모드 토글 기능 (선택 사항)
-        document.addEventListener('DOMContentLoaded', function() {
-            const themeToggle = document.createElement('button');
-            themeToggle.className = 'btn btn-sm btn-outline-secondary position-fixed bottom-0 end-0 m-3';
-            themeToggle.innerHTML = '<i class="bi bi-moon-stars"></i>';
-            themeToggle.onclick = function() {
-                const html = document.documentElement;
-                const isDark = html.getAttribute('data-bs-theme') === 'dark';
-                html.setAttribute('data-bs-theme', isDark ? 'light' : 'dark');
-                themeToggle.innerHTML = isDark ? '<i class="bi bi-moon-stars"></i>' : '<i class="bi bi-sun"></i>';
-            };
-            document.body.appendChild(themeToggle);
-        });
-    </script>
-    <script>
+    <!-- <script>
         // 새 세션 시작 함수
         async function resetSession() {
             try {
@@ -215,6 +200,6 @@
                 alert('새 세션을 시작하는 중 오류가 발생했습니다.');
             }
         }
-    </script>
+    </script> -->
 </body>
 </html>
