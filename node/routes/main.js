@@ -8,21 +8,6 @@ const axios = require('axios');
 // FastAPI 서버 설정
 const FASTAPI_URL = 'http://localhost:5000';
 
-// FastAPI 서버 상태 확인
-async function checkFastAPIServer() {
-    try {
-        await axios.get(`${FASTAPI_URL}/api/health`);
-        console.log('FastAPI 서버에 연결되었습니다.');
-        return true;
-    } catch (error) {
-        console.error('FastAPI 서버에 연결할 수 없습니다:', error.message);
-        return false;
-    }
-}
-
-// FastAPI 서버 상태 확인
-checkFastAPIServer();
-
 // 라우트
 router.get('/', (req, res) => {
     res.sendFile('index.html', { root: 'public' });

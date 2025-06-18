@@ -1,198 +1,262 @@
 let recognition;
 let isRecording = false;
-let sessionId = 'session_' + Date.now();  // 고유한 세션 ID 생성
+let sessionId = 'session_' + Date.now();
+let fullTranscript = '';
 
-// UI 요소
 const startButton = document.getElementById('startButton');
 const stopButton = document.getElementById('stopButton');
 const status = document.getElementById('status');
 const transcript = document.getElementById('transcript');
 const analysisResults = document.getElementById('analysisResults') || createAnalysisDiv();
 
-// 음성 인식 초기화
-if ('webkitSpeechRecognition' in window) {
-    recognition = new webkitSpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'ko-KR';
-
-    startButton.addEventListener('click', startRecording);
-    stopButton.addEventListener('click', stopRecording);
-
-    recognition.onresult = (event) => {
-        let interimTranscript = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            const result = event.results[i];
-            if (result.isFinal) {
-                processText(result[0].transcript);
-            } else {
-                interimTranscript += result[0].transcript;
-            }
-        }
-        
-        // 임시 결과 표시
-        transcript.textContent = interimTranscript;
-    };
-
-    recognition.onerror = (event) => {
-        console.error('음성 인식 오류:', event.error);
-        status.textContent = '오류: ' + event.error;
-    };
-} else {
+if (!('webkitSpeechRecognition' in window)) {
     alert('이 브라우저는 음성 인식을 지원하지 않습니다.');
+} else {
+    setupRecognition();
+    registerEventListeners();
 }
 
-// 녹음 시작
+function setupRecognition() {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'ko-KR';
+    recognition.maxAlternatives = 1;
+
+    if ('webkitSpeechGrammarList' in window) {
+        const grammar = '#JSGF V1.0; grammar punctuation; public <punc> = . | , | ? | ! | ; | :';
+        const speechRecognitionList = new webkitSpeechGrammarList();
+        speechRecognitionList.addFromString(grammar, 1);
+        recognition.grammars = speechRecognitionList;
+    }
+
+    recognition.onresult = handleRecognitionResult;
+    recognition.onend = () => {
+        if (isRecording) recognition.start();
+    };
+    recognition.onerror = (event) => {
+        console.error('음성 인식 오류:', event.error);
+        updateStatus('오류: ' + event.error);
+        toggleButtons(false);
+    };
+}
+
+function registerEventListeners() {
+    startButton.addEventListener('click', startRecording);
+    stopButton.addEventListener('click', stopRecording);
+}
+
 async function startRecording() {
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
         isRecording = true;
+        fullTranscript = '';
         recognition.start();
         toggleButtons(true);
-        status.textContent = '녹음 중...';
-        transcript.textContent = '';
-        analysisResults.innerHTML = '<p>분석 중...</p>';
+        updateStatus('녹음 중...');
+        transcript.textContent = '말씀해주세요...';
+        analysisResults.innerHTML = '';
     } catch (err) {
         console.error('마이크 접근 오류:', err);
-        status.textContent = '마이크 권한이 필요합니다.';
+        updateStatus('마이크 권한이 필요합니다.');
+        toggleButtons(false);
     }
 }
 
-// 녹음 중지
-function stopRecording() {
+async function stopRecording() {
     isRecording = false;
     recognition.stop();
     toggleButtons(false);
-    status.textContent = '준비됨';
+
+    if (!fullTranscript.trim()) {
+        updateStatus('녹음된 내용이 없습니다.');
+        return;
+    }
+
+    updateStatus('분석 중...');
+    transcript.textContent = fullTranscript.trim();
+    showLoadingUI();
+
+    try {
+        await requestTextAnalysis(fullTranscript.trim());
+        updateStatus('분석이 완료되었습니다.');
+    } catch (error) {
+        handleAnalysisError(error);
+    }
 }
 
-// 버튼 상태 전환
+function handleRecognitionResult(event) {
+    let interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+            fullTranscript += result[0].transcript + ' ';
+            const sentences = fullTranscript.split(/[.!?]+/);
+            transcript.textContent = sentences[sentences.length - 2] || sentences[0] || '';
+        } else {
+            interimTranscript = result[0].transcript;
+            const sentences = (fullTranscript + interimTranscript).split(/[.!?]+/);
+            transcript.textContent = (sentences[sentences.length - 1] || '').trim();
+        }
+    }
+}
+
+async function requestTextAnalysis(text) {
+    const payload = {
+        session_id: sessionId,
+        text,
+        generate_ai_feedback: true
+    };
+
+    const response = await fetch('http://localhost:5000/api/analyze', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    if (!result.success || !result.analysis) {
+        throw new Error(result.message || '유효하지 않은 분석 결과입니다.');
+    }
+
+    displayAnalysis(result.analysis);
+}
+
+function showLoadingUI() {
+    analysisResults.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">로딩 중...</span>
+            </div>
+            <h5 class="text-muted">발화 내용을 분석 중입니다</h5>
+            <p class="text-muted small">AI가 발화 내용을 분석하고 피드백을 생성하는 중입니다. 잠시만 기다려주세요...</p>
+        </div>
+    `;
+}
+
+function handleAnalysisError(error) {
+    console.error('분석 오류:', error);
+    updateStatus('분석 중 오류가 발생했습니다.');
+    analysisResults.innerHTML = `
+        <div class="alert alert-danger">
+            <strong>오류:</strong> ${error.message}
+        </div>
+    `;
+}
+
+function updateStatus(message) {
+    status.textContent = message;
+}
+
 function toggleButtons(isRecording) {
     startButton.disabled = isRecording;
     stopButton.disabled = !isRecording;
 }
 
-// 텍스트 처리 및 서버 전송
-async function processText(text) {
-    if (!text.trim()) return;
-
-    try {
-        const response = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                session_id: sessionId,
-                text: text
-            })
-        });
-
-        const result = await response.json();
-        
-        if (result.success && result.analysis) {
-            displayAnalysis(result.analysis);
-        }
-    } catch (error) {
-        console.error('분석 요청 오류:', error);
-        status.textContent = '분석 중 오류가 발생했습니다.';
-    }
-}
-
-// 기존 analyzeText 함수 수정
-async function analyzeText(text) {
-    try {
-        const response = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                session_id: currentSessionId,
-                text: text,
-                generate_ai_feedback: true  // AI 피드백 요청
-            }),
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            updateAnalysisUI(data.analysis);
-            if (data.analysis.ai_feedback) {
-                displayAIFeedback(data.analysis.ai_feedback);
-            }
-        }
-    } catch (error) {
-        console.error('분석 중 오류 발생:', error);
-    }
-}
-
-// AI 피드백 표시 함수 추가
-function displayAIFeedback(feedback) {
-    const feedbackContainer = document.getElementById('ai-feedback-container');
-    if (!feedbackContainer) {
-        const container = document.createElement('div');
-        container.id = 'ai-feedback-container';
-        container.className = 'mt-4 p-4 bg-blue-50 rounded-lg';
-        container.innerHTML = `
-            <h3 class="text-lg font-semibold mb-2">🤖 AI 피드백</h3>
-            <div id="ai-feedback-content" class="whitespace-pre-line"></div>
-        `;
-        document.getElementById('analysis-results').appendChild(container);
-    }
-
-    const content = document.getElementById('ai-feedback-content');
-    content.textContent = feedback;
-}
-
-// 분석 결과 표시
+// 분석 결과 표시 함수
 function displayAnalysis(analysis) {
-    analysisResults.innerHTML = `
-        <h3>🔍 분석 결과</h3>
-        <div class="result-item">
-            <span class="label">발화 내용:</span>
-            <p class="content">${analysis.full_text || '분석 중...'}</p>
-        </div>
-        <div class="result-item">
-            <span class="label">분당 단어 수:</span>
-            <span class="value">${analysis.wpm} WPM</span>
-            <small class="feedback">${analysis.wpm_feedback || ''}</small>
-        </div>
-        <div class="result-item">
-            <span class="label">필러 단어:</span>
-            <span class="value">${analysis.total_fillers}회</span>
-            ${analysis.total_fillers > 0 ? `
-                <div class="filler-words">
-                    ${Object.entries(analysis.filler_words)
-                        .filter(([_, count]) => count > 0)
-                        .map(([word, count]) => 
-                            `<span class="badge bg-warning text-dark">${word} (${count})</span>`
-                        ).join(' ')}
+    console.log('분석 결과:', analysis);
+    
+    // 필러 단어 목록 생성
+    let fillerWordsHtml = '';
+    if (analysis.filler_words && Object.keys(analysis.filler_words).length > 0) {
+        const fillerWordsList = Object.entries(analysis.filler_words)
+            .filter(([_, count]) => count > 0)
+            .map(([word, count]) => 
+                `<span class="badge bg-warning text-dark me-1 mb-1">${word}: ${count}회</span>`
+            ).join('\n');
+        
+        fillerWordsHtml = `
+            <div class="filler-words mt-2">
+                <p class="mb-2"><strong>사용된 필러 단어:</strong></p>
+                <div class="d-flex flex-wrap">
+                    ${fillerWordsList}
                 </div>
-            ` : ''}
-        </div>
-        ${analysis.ai_feedback ? `
-            <div class="ai-feedback mt-3 p-3 bg-light rounded">
-                <h5>🤖 AI 피드백</h5>
-                <p>${analysis.ai_feedback}</p>
+            </div>`;
+    }
+
+    // AI 피드백이 있는 경우 HTML 생성
+    const aiFeedbackHtml = analysis.ai_feedback ? `
+        <div class="ai-feedback mt-4 p-4 rounded-3 bg-light">
+            <div class="d-flex align-items-center mb-3">
+                <i class="bi bi-robot fs-4 me-2 text-primary"></i>
+                <h4 class="mb-0 fw-bold">AI 발표 코칭</h4>
             </div>
-        ` : ''}
-        <button onclick="resetSession()" class="btn btn-sm btn-outline-secondary mt-2">
-            <i class="bi bi-arrow-repeat"></i> 새 세션 시작
-        </button>
-    `;
-}
+            <div class="feedback-content" style="white-space: pre-line;">
+                ${analysis.ai_feedback.replace(/\n/g, '<br>')}
+            </div>
+        </div>` : 
+        '<div class="alert alert-warning">AI 피드백을 불러오는 중 오류가 발생했습니다.</div>';
 
-// 새 세션 시작
-window.resetSession = function() {
-    sessionId = 'session_' + Date.now();
-    transcript.textContent = '';
-    analysisResults.innerHTML = '<p class="text-muted">새 세션이 시작되었습니다.</p>';
-}
-
-// 분석 결과 컨테이너 생성
-function createAnalysisDiv() {
-    const div = document.createElement('div');
-    div.id = 'analysisResults';
-    div.className = 'mt-4 p-3 border rounded';
-    document.querySelector('.container').appendChild(div);
-    return div;
+    // 전체 분석 결과 HTML 조립
+    analysisResults.innerHTML = `
+        <div class="analysis-result">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="card-title h4 mb-4 text-primary">
+                        <i class="bi bi-graph-up me-2"></i>발표 분석 결과
+                    </h3>
+                    
+                    <div class="result-item mb-4">
+                        <h5 class="d-flex align-items-center mb-3">
+                            <i class="bi bi-chat-square-text me-2 text-primary"></i>
+                            발화 내용
+                        </h5>
+                        <div class="p-3 bg-light rounded-2">
+                            <p class="mb-0">${analysis.full_text || '분석된 텍스트가 없습니다.'}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title d-flex align-items-center">
+                                        <i class="bi bi-speedometer2 me-2 text-primary"></i>
+                                        발화 속도
+                                    </h5>
+                                    <div class="d-flex align-items-baseline mb-2">
+                                        <span class="display-5 fw-bold me-2">${analysis.wpm || 0}</span>
+                                        <span class="text-muted">WPM</span>
+                                    </div>
+                                    <p class="mb-0 text-muted">${analysis.wpm_feedback || '분석 중...'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title d-flex align-items-center">
+                                        <i class="bi bi-chat-dots me-2 text-primary"></i>
+                                        필러 단어 분석
+                                    </h5>
+                                    <div class="d-flex align-items-baseline mb-2">
+                                        <span class="display-5 fw-bold me-2">${analysis.total_fillers || 0}</span>
+                                        <span class="text-muted">회 사용</span>
+                                    </div>
+                                    ${fillerWordsHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${aiFeedbackHtml}
+                    
+                    <div class="text-center mt-4">
+                        <button onclick="location.reload()" class="btn btn-primary px-4">
+                            <i class="bi bi-arrow-repeat me-2"></i>새 발표 시작하기
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
 }

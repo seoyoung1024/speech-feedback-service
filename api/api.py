@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import time
 import os
 import json
@@ -67,15 +67,27 @@ def mongo_to_dict(obj):
 # ====================
 class SpeechAnalyzer:
     def __init__(self):
-        self.start_time = time.time()
+        self.reset()
+        
+    def reset(self):
+        self.start_time = None
         self.word_count = 0
         self.filler_counts = {word: 0 for word in FILLER_WORDS}
         self.all_words = []
         self.full_text = ""
         self._session_id = "default"
+        self._first_text_added = False  # 첫 텍스트 추가 여부를 추적하는 플래그 추가
 
     def add_text(self, text: str) -> None:
         words = text.strip().split()
+        if not words:  # 빈 텍스트는 무시
+            return
+            
+        # 첫 번째 텍스트가 추가될 때 시간 기록
+        if not hasattr(self, '_first_text_added') or not self._first_text_added:
+            self.start_time = time.time()
+            self._first_text_added = True
+            
         self.word_count += len(words)
         self.all_words.extend(words)
         self.full_text += " " + text.strip()
@@ -88,8 +100,15 @@ class SpeechAnalyzer:
                 self.filler_counts[word_lower] += 1
 
     def get_analysis(self) -> dict:
-        minutes = (time.time() - self.start_time) / 60
-        wpm = self.word_count / minutes if minutes > 0 else 0
+        # 발화 시간 계산 (최소 1초, 최대 10분)
+        if self.start_time is None:
+            elapsed_time = 1.0  # 아직 시작 전이면 1초로 가정
+        else:
+            elapsed_time = max(1.0, min(time.time() - self.start_time, 600))  # 1초 ~ 10분 사이로 제한
+            
+        minutes = elapsed_time / 60.0
+        wpm = (self.word_count / minutes) if minutes > 0 else 0
+        wpm = min(wpm, 250)  # 최대 WPM을 250으로 제한 (인간의 일반적인 발화 속도 범위 내로 제한)
 
         used_fillers = {k: v for k, v in self.filler_counts.items() if v > 0}
 
@@ -109,7 +128,6 @@ class SpeechAnalyzer:
             "filler_words": used_fillers,
             "total_fillers": sum(used_fillers.values()),
             "speech_duration": round(time.time() - self.start_time, 2),
-            "last_updated": datetime.now().isoformat()
         }
 
     @property
@@ -118,47 +136,110 @@ class SpeechAnalyzer:
 
     @session_id.setter
     def session_id(self, value):
+        # 세션이 변경될 때마다 start_time을 현재 시간으로 재설정
+        if self._session_id != value:
+            self.start_time = time.time()
+        self._session_id = value
         self._session_id = value
 
 # ====================
 # 📌 AI 피드백 생성
 # ====================
 async def generate_ai_feedback(analysis_result: dict) -> str:
-    """Gemini를 사용하여 분석 결과에 대한 피드백 생성"""
+    """Gemini를 사용하여 분석 결과에 대한 전문가 같은 피드백 생성"""
     try:
+        # 기본 분석 결과 추출
         wpm = analysis_result.get('wpm', 0)
         wpm_feedback = analysis_result.get('wpm_feedback', '')
         total_fillers = analysis_result.get('total_fillers', 0)
-        filler_words = analysis_result.get('filler_words', {})
+        filler_words = {k: v for k, v in analysis_result.get('filler_words', {}).items() if v > 0}
         speech_duration = analysis_result.get('speech_duration', 0)
         full_text = analysis_result.get('full_text', '')
+        word_count = analysis_result.get('word_count', 0)
         
+        # 발화 속도 평가
+        speed_assessment = "적절함"
+        if wpm < 100:
+            speed_assessment = "다소 느림"
+        elif wpm > 180:
+            speed_assessment = "다소 빠름"
+        
+        # 필러 단어 사용량 평가
+        filler_assessment = "적절함"
+        filler_ratio = (total_fillers / word_count * 100) if word_count > 0 else 0
+        if filler_ratio > 5:
+            filler_assessment = "다소 많음"
+        elif filler_ratio > 10:
+            filler_assessment = "많이 사용됨"
+        
+        # 프롬프트 구성
         prompt = f"""
-        다음은 사용자의 발화 분석 결과입니다. 이에 대한 전문가 같은 피드백을 제공해주세요.
+        당신은 발표 코칭 전문가입니다. 다음 발화 분석 결과를 바탕으로 전문가 같은 피드백을 제공해주세요.
         
         [발화 내용]
         {full_text}
         
         [분석 결과]
-        - 평균 속도: {wpm} WPM
-        - 속도 피드백: {wpm_feedback}
-        - 사용된 필러 단어: {total_fillers}회
-        - 필터 단어 상세: {json.dumps(filler_words, ensure_ascii=False)}
-        - 발화 시간: {speech_duration:.2f}초
-        
-        다음 사항을 고려하여 한국어로 피드백을 작성해주세요:
-        1. 발화 속도가 적절한지 평가
-        2. 필러 단어 사용 패턴 분석
-        3. 전체적인 발화 흐름과 명확성 평가
-        4. 개선을 위한 구체적인 조언
-        5. 격려의 메시지 포함
+        1. 발화 속도: {wpm:.1f} WPM ({speed_assessment})
+           - {wpm_feedback}
+           
+        2. 필러 단어 사용량: {total_fillers}회 ({filler_assessment})
         """
         
+        # 필러 단어가 있는 경우에만 상세 정보 추가
+        if filler_words:
+            prompt += f"""
+            3. 주요 필터 단어 사용 횟수:
+               {', '.join([f'{k}: {v}회' for k, v in filler_words.items()])}
+            """
+        
+        # 추가 지시사항
+        prompt += f"""
+        
+        [피드백 요청사항]
+        다음 내용을 고려하여 한국어로 전문가 같은 피드백을 제공해주세요:
+        
+        1. 발화 속도 평가:
+           - 현재 속도({wpm:.1f} WPM)가 적절한지 여부
+           - 청중이 이해하기 좋은 이상적인 발화 속도 제안
+           
+        2. 필러 단어 사용 분석:
+           - 사용된 필러 단어 패턴 분석
+           - 각 필러 단어 대신 사용할 수 있는 적절한 표현 제안
+           
+        3. 내용 구성:
+           - 논리적 흐름이 적절했는지
+           - 핵심 메시지 전달이 효과적이었는지
+           
+        4. 개선을 위한 구체적인 조언:
+           - 발화 속도 조절 방법
+           - 필러 단어 줄이기 위한 실천 방안
+           - 전반적인 전달력 향상을 위한 팁
+           
+        [주의사항]
+        - 반말이 아닌 존댓말로 작성해주세요.
+        - 부정적인 표현보다는 긍정적인 조언 위주로 작성해주세요.
+        - 구체적인 예시를 들어 설명해주세요.
+        - 전체적으로 격려의 메시지를 포함해주세요.
+        - 피드백은 2-3개의 단락으로 구성해주세요.
+        """
+        
+        # AI 모델 호출
+        print(f"[DEBUG] Gemini에 전송할 프롬프트 길이: {len(prompt)}자")
         response = gemini_model.generate_content(prompt)
-        return response.text
+        
+        # 응답 처리
+        if response.text:
+            print(f"[DEBUG] AI 피드백 생성 완료 - 길이: {len(response.text)}자")
+            return response.text.strip()
+        else:
+            print("[WARNING] AI 피드백이 비어있습니다.")
+            return "죄송합니다. AI 피드백을 생성하는 데 실패했습니다. 다시 시도해주세요."
+            
     except Exception as e:
-        print(f"AI 피드백 생성 오류: {e}")
-        return "AI 피드백을 생성하는 중 오류가 발생했습니다."
+        error_msg = f"AI 피드백 생성 중 오류: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        return f"AI 피드백을 생성하는 중 오류가 발생했습니다: {str(e)}"
 
 # ====================
 # 📌 세션 & DB 관리
@@ -174,6 +255,10 @@ def save_result_to_db(result: dict) -> dict:
         result_copy = result.copy()
         if '_id' in result_copy:
             del result_copy['_id']
+            
+        # 한국 시간대 설정 (UTC+9)
+        kst = timezone(timedelta(hours=9))
+        result_copy['analyzed_at'] = datetime.now(kst).isoformat()
             
         # MongoDB에 저장
         result_id = collection.insert_one(result_copy).inserted_id
@@ -191,29 +276,74 @@ def save_result_to_db(result: dict) -> dict:
 
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze_text(request: TextAnalysisRequest):
+    print(f"[DEBUG] 요청 수신 - session_id: {request.session_id}, generate_ai_feedback: {request.generate_ai_feedback}")
+    print(f"[DEBUG] 요청 텍스트 길이: {len(request.text)}자")
+    
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="텍스트를 입력해주세요.")
 
-    if request.session_id not in sessions:
-        analyzer = SpeechAnalyzer()
-        analyzer.session_id = request.session_id
-        sessions[request.session_id] = analyzer
+    try:
+        # 세션 관리
+        if request.session_id not in sessions:
+            print(f"[DEBUG] 새 세션 생성: {request.session_id}")
+            analyzer = SpeechAnalyzer()
+            analyzer.session_id = request.session_id
+            sessions[request.session_id] = analyzer
+        
+        analyzer = sessions[request.session_id]
+        
+        # 텍스트 분석
+        analyzer.add_text(request.text)
+        result = analyzer.get_analysis()
+        
+        # 분석 결과에 추가 메타데이터 추가
+        result["analyzed_at"] = datetime.now().isoformat()
+        result["text_length"] = len(request.text)
+        result["word_count"] = len(request.text.split())
+        
+        print(f"[DEBUG] 기본 분석 완료 - 단어 수: {result['word_count']}개, WPM: {result['wpm']:.1f}, 필러: {result['total_fillers']}회")
 
-    analyzer = sessions[request.session_id]
-    analyzer.add_text(request.text)
-    result = analyzer.get_analysis()
+        # AI 피드백 생성 (요청된 경우에만)
+        if request.generate_ai_feedback:
+            print("[DEBUG] AI 피드백 생성 시작")
+            try:
+                # 최소 10단어 이상인 경우에만 AI 피드백 생성
+                if result['word_count'] >= 10:
+                    ai_feedback = await generate_ai_feedback(result)
+                    result["ai_feedback"] = ai_feedback
+                    print("[DEBUG] AI 피드백 생성 완료")
+                else:
+                    result["ai_feedback"] = "발화 내용이 너무 짧아 AI 피드백을 생성하기 어렵습니다. 더 긴 문장으로 시도해주세요."
+                    print("[DEBUG] 발화 내용이 짧아 AI 피드백 생성 생략")
+            except Exception as e:
+                error_msg = f"AI 피드백 생성 중 오류: {str(e)}"
+                print(f"[ERROR] {error_msg}")
+                result["ai_feedback"] = error_msg
+        else:
+            print("[DEBUG] AI 피드백 생성 생략 (요청되지 않음)")
+            result["ai_feedback"] = None
 
-    # AI 피드백 생성 (요청된 경우에만)
-    if request.generate_ai_feedback:
-        result["ai_feedback"] = await generate_ai_feedback(result)
-
-    # 결과 저장
-    saved_result = save_result_to_db(result)
-    
-    return {
-        "success": True,
-        "analysis": saved_result
-    }
+        # 결과 저장
+        try:
+            saved_result = save_result_to_db(result)
+            print("[DEBUG] 결과 저장 완료")
+        except Exception as e:
+            print(f"[ERROR] 결과 저장 실패: {str(e)}")
+            saved_result = result
+        
+        # 최종 응답 구성
+        response_data = {
+            "success": True,
+            "analysis": saved_result
+        }
+        
+        print("[DEBUG] 분석 완료 및 응답 반환")
+        return response_data
+        
+    except Exception as e:
+        error_msg = f"분석 중 오류 발생: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @app.post("/api/reset-session")
 async def reset_session(session_id: str):
