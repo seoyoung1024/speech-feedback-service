@@ -69,7 +69,7 @@ def generate_feedback(analysis_result):
 
 def main():
     # 분석 결과 파일 경로 (실제 경로로 수정 필요)
-    analysis_file = "results/speech_analysis_default_1750041493.json"
+    analysis_file = "results"
     
     # 분석 결과 로드
     analysis_result = load_analysis_result(analysis_file)

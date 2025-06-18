@@ -98,6 +98,51 @@ async function processText(text) {
     }
 }
 
+// 기존 analyzeText 함수 수정
+async function analyzeText(text) {
+    try {
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_id: currentSessionId,
+                text: text,
+                generate_ai_feedback: true  // AI 피드백 요청
+            }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            updateAnalysisUI(data.analysis);
+            if (data.analysis.ai_feedback) {
+                displayAIFeedback(data.analysis.ai_feedback);
+            }
+        }
+    } catch (error) {
+        console.error('분석 중 오류 발생:', error);
+    }
+}
+
+// AI 피드백 표시 함수 추가
+function displayAIFeedback(feedback) {
+    const feedbackContainer = document.getElementById('ai-feedback-container');
+    if (!feedbackContainer) {
+        const container = document.createElement('div');
+        container.id = 'ai-feedback-container';
+        container.className = 'mt-4 p-4 bg-blue-50 rounded-lg';
+        container.innerHTML = `
+            <h3 class="text-lg font-semibold mb-2">🤖 AI 피드백</h3>
+            <div id="ai-feedback-content" class="whitespace-pre-line"></div>
+        `;
+        document.getElementById('analysis-results').appendChild(container);
+    }
+
+    const content = document.getElementById('ai-feedback-content');
+    content.textContent = feedback;
+}
+
 // 분석 결과 표시
 function displayAnalysis(analysis) {
     analysisResults.innerHTML = `
