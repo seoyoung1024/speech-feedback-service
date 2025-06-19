@@ -10,7 +10,7 @@ const FASTAPI_URL = 'http://localhost:5000';
 
 // 라우트
 router.get('/', (req, res) => {
-    res.sendFile('index.html', { root: 'public' });
+    res.sendFile('aifeedback.html', { root: 'public' });
 });
 
 // 분석 API - FastAPI로 프록시
