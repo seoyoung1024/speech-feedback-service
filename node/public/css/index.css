@@ -1,0 +1,63 @@
+:root {
+    --primary-color: #4a6bdf;
+    --secondary-color: #6c757d;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+}
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background-color: #f5f7ff;
+}
+.hero-section {
+    background: linear-gradient(135deg, #4a6bdf 0%, #3a56c9 100%);
+    color: white;
+    padding: 5rem 0;
+    border-radius: 0 0 50% 50% / 0 0 100px 100px;
+    margin-bottom: 3rem;
+}
+.feature-card {
+    border: none;
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+    height: 100%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+.feature-card:hover {
+    transform: translateY(-10px);
+}
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+.btn-primary {
+    background-color: var(--primary-color);
+    border: none;
+    padding: 0.8rem 2rem;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+.btn-primary:hover {
+    background-color: #3a56c9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+.how-it-works {
+    background-color: white;
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+.step-number {
+    width: 40px;
+    height: 40px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
