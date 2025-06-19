@@ -13,6 +13,7 @@ from bson import ObjectId
 from config import FILLER_WORDS, IDEAL_WPM, SLOW_THRESHOLD, FAST_THRESHOLD
 from dotenv import load_dotenv
 import boto3
+import re
 
 # 환경변수 로드
 load_dotenv()
@@ -69,26 +70,29 @@ def mongo_to_dict(obj):
 class SpeechAnalyzer:
     def __init__(self):
         self.reset()
-        
+
     def reset(self):
         self.start_time = None
+        self.end_time = None  # ✅ 마지막 텍스트 수신 시각
         self.word_count = 0
         self.filler_counts = {word: 0 for word in FILLER_WORDS}
         self.all_words = []
         self.full_text = ""
         self._session_id = "default"
-        self._first_text_added = False  # 첫 텍스트 추가 여부를 추적하는 플래그 추가
+        self._first_text_added = False
 
     def add_text(self, text: str) -> None:
-        words = text.strip().split()
-        if not words:  # 빈 텍스트는 무시
+        words = re.findall(r'\b\w+\b', text)
+        if not words:
             return
-            
-        # 첫 번째 텍스트가 추가될 때 시간 기록
-        if not hasattr(self, '_first_text_added') or not self._first_text_added:
-            self.start_time = time.time()
+
+        current_time = time.time()
+
+        if not self._first_text_added:
+            self.start_time = current_time
             self._first_text_added = True
-            
+
+        self.end_time = current_time  # ✅ 마지막 말한 시각 저장
         self.word_count += len(words)
         self.all_words.extend(words)
         self.full_text += " " + text.strip()
@@ -101,15 +105,14 @@ class SpeechAnalyzer:
                 self.filler_counts[word_lower] += 1
 
     def get_analysis(self) -> dict:
-        # 발화 시간 계산 (최소 1초, 최대 10분)
-        if self.start_time is None:
-            elapsed_time = 1.0  # 아직 시작 전이면 1초로 가정
+        if self.start_time is None or self.end_time is None:
+            elapsed_time = 1.0
         else:
-            elapsed_time = max(1.0, min(time.time() - self.start_time, 600))  # 1초 ~ 10분 사이로 제한
-            
+            elapsed_time = max(1.0, min(self.end_time - self.start_time, 600))  # ✅ 정확한 발화 시간 계산
+
         minutes = elapsed_time / 60.0
         wpm = (self.word_count / minutes) if minutes > 0 else 0
-        wpm = min(wpm, 250)  # 최대 WPM을 250으로 제한 (인간의 일반적인 발화 속도 범위 내로 제한)
+        wpm = min(wpm, 200)
 
         used_fillers = {k: v for k, v in self.filler_counts.items() if v > 0}
         total_fillers = sum(used_fillers.values())
@@ -120,8 +123,7 @@ class SpeechAnalyzer:
             wpm_feedback = "조금 더 천천히, 또박또박 말씀해보세요."
         else:
             wpm_feedback = "적절한 속도로 말하고 계십니다."
-            
-        # S3에 저장
+
         s3_url = None
         if s3_client:
             result_data = {
@@ -134,9 +136,9 @@ class SpeechAnalyzer:
                     "speech_duration": round(elapsed_time, 2),
                     "analyzed_at": datetime.utcnow().isoformat()
                 }
-        }
+            }
             s3_url = upload_to_s3(result_data, f"{self.session_id}.json")
-    
+
         return {
             "session_id": self.session_id,
             "word_count": self.word_count,
@@ -145,8 +147,8 @@ class SpeechAnalyzer:
             "filler_words": used_fillers,
             "total_fillers": total_fillers,
             "speech_duration": round(elapsed_time, 2),
-            "s3_url": s3_url,  # S3 URL 추가
-            "full_text": self.full_text  # AI 피드백 생성을 위해 추가
+            "s3_url": s3_url,
+            "full_text": self.full_text
         }
 
     @property
@@ -155,9 +157,9 @@ class SpeechAnalyzer:
 
     @session_id.setter
     def session_id(self, value):
-        # 세션이 변경될 때마다 start_time을 현재 시간으로 재설정
         if self._session_id != value:
             self.start_time = time.time()
+            self.end_time = None
         self._session_id = value
 
 # ====================
