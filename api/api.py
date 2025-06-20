@@ -48,6 +48,8 @@ class TextAnalysisRequest(BaseModel):
     session_id: str = "default"
     text: str
     generate_ai_feedback: bool = False
+    start_time: Optional[float] = None
+    end_time: Optional[float] = None
 
 # 응답 모델 정의
 class AnalysisResponse(BaseModel):
@@ -81,22 +83,32 @@ class SpeechAnalyzer:
         self._session_id = "default"
         self._first_text_added = False
 
-    def add_text(self, text: str) -> None:
+    def add_text(self, text: str, start_time: float = None, end_time: float = None) -> None:
         words = re.findall(r'\b\w+\b', text)
         if not words:
             return
+        now = time.time()
 
-        current_time = time.time()
+        # 디버깅 로그 추가 (받은 값 그대로 출력)
+        print(f"[DEBUG] add_text()에 전달된 start_time: {start_time}, end_time: {end_time}")
+        if start_time is not None:
+            self.start_time = start_time
+        elif not self._first_text_added:
+            self.start_time = now
+        if end_time is not None:
+            self.end_time = end_time
+        else:
+            self.end_time = now
 
-        if not self._first_text_added:
-            self.start_time = current_time
-            self._first_text_added = True
+        # 디버깅 로그 (내부 적용된 값 확인)
+        print(f"[DEBUG] SpeechAnalyzer에 설정된 start_time: {self.start_time}, end_time: {self.end_time}")
 
-        self.end_time = current_time  # ✅ 마지막 말한 시각 저장
-        self.word_count += len(words)
-        self.all_words.extend(words)
-        self.full_text += " " + text.strip()
+        self._first_text_added = True
+        self.word_count = len(words)         # 누적이 아니라 새로 계산
+        self.all_words = words               # 누적이 아니라 새로 할당
+        self.full_text = text.strip()        # 누적이 아니라 새로 할당
         self._count_fillers(words)
+        
 
     def _count_fillers(self, words: list) -> None:
         for word in words:
@@ -105,18 +117,29 @@ class SpeechAnalyzer:
                 self.filler_counts[word_lower] += 1
 
     def get_analysis(self) -> dict:
+        # 1. 발화 시간 계산
         if self.start_time is None or self.end_time is None:
+            print("[WARN] start_time 또는 end_time이 None입니다. 기본값 1초로 설정합니다.")
             elapsed_time = 1.0
         else:
-            elapsed_time = max(1.0, min(self.end_time - self.start_time, 600))  # ✅ 정확한 발화 시간 계산
+            elapsed_time = self.end_time - self.start_time
+            if elapsed_time < 1.0:
+                print(f"[WARN] 발화 시간이 너무 짧습니다: {elapsed_time:.3f}초 → 1초로 보정합니다.")
+                elapsed_time = 1.0
+            elif elapsed_time > 600:
+                print(f"[INFO] 발화 시간이 600초를 초과했습니다: {elapsed_time:.1f}초 → 600초로 제한합니다.")
+                elapsed_time = 600
 
+        # 2. 발화 속도 계산 (WPM)
         minutes = elapsed_time / 60.0
         wpm = (self.word_count / minutes) if minutes > 0 else 0
-        wpm = min(wpm, 200)
+        wpm = round(wpm, 2)
 
+        # 3. 필러 단어 정리
         used_fillers = {k: v for k, v in self.filler_counts.items() if v > 0}
         total_fillers = sum(used_fillers.values())
 
+        # 4. WPM 피드백 결정
         if wpm < SLOW_THRESHOLD:
             wpm_feedback = "조금 더 빠르게 말씀해보시는 건 어떨까요?"
         elif wpm > FAST_THRESHOLD:
@@ -134,7 +157,8 @@ class SpeechAnalyzer:
                     "filler_words": used_fillers,
                     "total_fillers": total_fillers,
                     "speech_duration": round(elapsed_time, 2),
-                    "analyzed_at": datetime.utcnow().isoformat()
+                    "analyzed_at": datetime.utcnow().isoformat(),
+                    "full_text": self.full_text
                 }
             }
             s3_url = upload_to_s3(result_data, f"{self.session_id}.json")
@@ -244,6 +268,7 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
         - 구체적인 예시를 들어 설명해주세요.
         - 전체적으로 격려의 메시지를 포함해주세요.
         - 피드백은 2-3개의 단락으로 구성해주세요.
+        - 요구 사항 별로 숫자를 붙여 작성해주세요.
         """
         
         # AI 모델 호출
@@ -329,7 +354,9 @@ def upload_to_s3(data: dict, file_name: str) -> Optional[str]:
 async def analyze_text(request: TextAnalysisRequest):
     print(f"[DEBUG] 요청 수신 - session_id: {request.session_id}, generate_ai_feedback: {request.generate_ai_feedback}")
     print(f"[DEBUG] 요청 텍스트 길이: {len(request.text)}자")
-    
+    print(f"[DEBUG] 요청에서 받은 start_time: {request.start_time}, end_time: {request.end_time}")
+
+
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="텍스트를 입력해주세요.")
 
@@ -344,7 +371,11 @@ async def analyze_text(request: TextAnalysisRequest):
         analyzer = sessions[request.session_id]
         
         # 텍스트 분석
-        analyzer.add_text(request.text)
+        analyzer.add_text(
+            request.text,
+            start_time=request.start_time,
+            end_time=request.end_time
+        )
         result = analyzer.get_analysis()
         
         # 분석 결과에 추가 메타데이터 추가

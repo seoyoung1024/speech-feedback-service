@@ -2,6 +2,9 @@ let recognition;
 let isRecording = false;
 let sessionId = 'session_' + Date.now();
 let fullTranscript = '';
+let startTime, endTime;
+let recognitionStartTime, recognitionEndTime;
+let timerInterval; //타이머 저장용
 
 const startButton = document.getElementById('startButton');
 const stopButton = document.getElementById('stopButton');
@@ -30,6 +33,17 @@ function setupRecognition() {
         recognition.grammars = speechRecognitionList;
     }
 
+    // === 여기에 추가! ===
+    recognition.onstart = () => {
+        recognitionStartTime = Date.now();
+    };
+    recognition.onend = () => {
+        recognitionEndTime = Date.now();
+        // 이때 분석 요청을 보내면 더 정확!
+        // requestTextAnalysis(fullTranscript.trim(), recognitionStartTime, recognitionEndTime);
+    };
+    // ==================
+
     recognition.onresult = handleRecognitionResult;
     recognition.onend = () => {
         if (isRecording) recognition.start();
@@ -47,6 +61,7 @@ function registerEventListeners() {
 }
 
 async function startRecording() {
+    startTime = Date.now();
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
         isRecording = true;
@@ -56,6 +71,15 @@ async function startRecording() {
         updateStatus('녹음 중...');
         transcript.textContent = '말씀해주세요...';
         analysisResults.innerHTML = '';
+
+        //타이머 시작
+        const timerEl = document.getElementById('recordingTimer');
+        timerEl.textContent = '녹음 시간: 0초';
+        timerInterval = setInterval(() => { 
+            const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+            timerEl.textContent = `녹음 시간: ${elapsedSec}초`;
+        }, 1000);
+
     } catch (err) {
         console.error('마이크 접근 오류:', err);
         updateStatus('마이크 권한이 필요합니다.');
@@ -64,9 +88,16 @@ async function startRecording() {
 }
 
 async function stopRecording() {
+    endTime = Date.now();
+    console.log("⏱️ [DEBUG] startTime:", startTime, "endTime:", endTime);
+
     isRecording = false;
     recognition.stop();
     toggleButtons(false);
+
+    // 타이머 정지
+    clearInterval(timerInterval);
+    document.getElementById('recordingTimer').textContent += ' 종료됨';
 
     if (!fullTranscript.trim()) {
         updateStatus('녹음된 내용이 없습니다.');
@@ -78,7 +109,7 @@ async function stopRecording() {
     showLoadingUI();
 
     try {
-        await requestTextAnalysis(fullTranscript.trim());
+        await requestTextAnalysis(fullTranscript.trim(), startTime, endTime);
         updateStatus('분석이 완료되었습니다.');
     } catch (error) {
         handleAnalysisError(error);
@@ -101,11 +132,13 @@ function handleRecognitionResult(event) {
     }
 }
 
-async function requestTextAnalysis(text) {
+async function requestTextAnalysis(text, startTime, endTime) {
     const payload = {
         session_id: sessionId,
         text,
-        generate_ai_feedback: true
+        generate_ai_feedback: true,
+        start_time: startTime / 1000,
+        end_time: endTime / 1000
     };
 
     const response = await fetch('http://localhost:5000/api/analyze', {
