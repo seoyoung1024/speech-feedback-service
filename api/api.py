@@ -135,6 +135,11 @@ class SpeechAnalyzer:
         wpm = (self.word_count / minutes) if minutes > 0 else 0
         wpm = round(wpm, 2)
 
+        # 2-1. 음절(Syllable) 기준 속도 계산 (SPM)
+        syllable_count = sum(1 for c in self.full_text if '\uAC00' <= c <= '\uD7A3')
+        spm = (syllable_count / minutes) if minutes > 0 else 0
+        spm = round(spm, 2)
+
         # 3. 필러 단어 정리
         used_fillers = {k: v for k, v in self.filler_counts.items() if v > 0}
         total_fillers = sum(used_fillers.values())
@@ -166,7 +171,9 @@ class SpeechAnalyzer:
         return {
             "session_id": self.session_id,
             "word_count": self.word_count,
-            "wpm": round(wpm, 2),
+            "wpm": wpm,
+            "spm": spm,
+            "syllable_count": syllable_count,
             "wpm_feedback": wpm_feedback,
             "filler_words": used_fillers,
             "total_fillers": total_fillers,

@@ -279,7 +279,9 @@ function displayAnalysis(analysis) {
                                     </div>
                                     <ul class="list-unstyled mb-2">
                                         <li><span class="badge bg-info text-dark">총 단어 수: ${analysis.word_count ?? 'N/A'}개</span></li>
+                                        <li><span class="badge bg-secondary">총 음절 수: ${analysis.syllable_count ?? 'N/A'}개</span></li>
                                         <li><span class="badge bg-secondary">녹음 시간: ${(analysis.speech_duration ?? analysis.duration_sec ?? analysis.duration ?? 'N/A')}초</span></li>
+                                        <li><span class="badge bg-success">SPM(음절/분): ${analysis.spm ?? 'N/A'}</span></li>
                                     </ul>
                                     <p class="mb-0 text-muted">${analysis.wpm_feedback || '분석 중...'}</p>
                                 </div>
