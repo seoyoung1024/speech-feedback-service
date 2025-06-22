@@ -21,8 +21,9 @@ if (!('webkitSpeechRecognition' in window)) {
 
 function setupRecognition() {
     recognition = new webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    // 필러워드 인식률을 최대한 높이기 위해 continuous/interimResults 모두 true로 설정
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.lang = 'ko-KR';
     recognition.maxAlternatives = 1;
 
@@ -33,27 +34,25 @@ function setupRecognition() {
         recognition.grammars = speechRecognitionList;
     }
 
-    // === 여기에 추가! ===
     recognition.onstart = () => {
         recognitionStartTime = Date.now();
     };
     recognition.onend = () => {
         recognitionEndTime = Date.now();
-        // 이때 분석 요청을 보내면 더 정확!
-        // requestTextAnalysis(fullTranscript.trim(), recognitionStartTime, recognitionEndTime);
-    };
-    // ==================
-
-    recognition.onresult = handleRecognitionResult;
-    recognition.onend = () => {
+        // isRecording이 true면 자동 재시작 (실시간 누적)
         if (isRecording) recognition.start();
     };
+    recognition.onresult = handleRecognitionResult;
     recognition.onerror = (event) => {
         console.error('음성 인식 오류:', event.error);
         updateStatus('오류: ' + event.error);
         toggleButtons(false);
     };
 }
+
+// 모든 결과(중간+최종)를 누적 저장
+let allTranscripts = [];
+let lastFinalTranscript = '';
 
 function registerEventListeners() {
     startButton.addEventListener('click', startRecording);
@@ -99,37 +98,53 @@ async function stopRecording() {
     clearInterval(timerInterval);
     document.getElementById('recordingTimer').textContent += ' 종료됨';
 
-    if (!fullTranscript.trim()) {
+    // 모든 누적 텍스트를 합쳐서 분석 (필러워드 인식률 극대화)
+    const fullTextForAnalysis = allTranscripts.join(' ');
+    if (!fullTextForAnalysis.trim()) {
         updateStatus('녹음된 내용이 없습니다.');
         return;
     }
 
     updateStatus('분석 중...');
-    transcript.textContent = fullTranscript.trim();
+    // transcript.textContent는 그대로 두어, 발화 내용이 계속 보이게 함
     showLoadingUI();
 
     try {
-        await requestTextAnalysis(fullTranscript.trim(), startTime, endTime);
+        await requestTextAnalysis(fullTextForAnalysis.trim(), startTime, endTime);
         updateStatus('분석이 완료되었습니다.');
     } catch (error) {
         handleAnalysisError(error);
     }
+    // 분석 후 누적 배열 초기화 (화면의 발화 내용은 그대로)
+    allTranscripts = [];
+    fullTranscript = '';
+    lastTranscriptText = '';
 }
 
 function handleRecognitionResult(event) {
     let interimTranscript = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
+        const transcriptText = result[0].transcript;
+
         if (result.isFinal) {
-            fullTranscript += result[0].transcript + ' ';
-            const sentences = fullTranscript.split(/[.!?]+/);
-            transcript.textContent = sentences[sentences.length - 2] || sentences[0] || '';
+            // 중복 누적 방지: 직전 최종 결과와 다를 때만 추가
+            if (!fullTranscript.endsWith(transcriptText)) {
+                // 새로 추가된 부분만 추출
+                let newPart = transcriptText;
+                if (transcriptText.startsWith(fullTranscript)) {
+                    newPart = transcriptText.slice(fullTranscript.length);
+                }
+                fullTranscript += newPart + ' ';
+                allTranscripts.push(newPart);
+            }
+            lastFinalTranscript = transcriptText;
         } else {
-            interimTranscript = result[0].transcript;
-            const sentences = (fullTranscript + interimTranscript).split(/[.!?]+/);
-            transcript.textContent = (sentences[sentences.length - 1] || '').trim();
+            interimTranscript = transcriptText;
         }
     }
+    // 실시간 표시: 누적된 최종 결과 + 현재 interim
+    transcript.textContent = (fullTranscript + interimTranscript).trim();
 }
 
 async function requestTextAnalysis(text, startTime, endTime) {
@@ -196,7 +211,9 @@ function toggleButtons(isRecording) {
 
 // 분석 결과 표시 함수
 function displayAnalysis(analysis) {
-    console.log('분석 결과:', analysis);
+    console.log('분석 결과 전체:', analysis);
+    // WPM, 단어 수, 녹음 시간 등 분석값을 콘솔에도 상세히 출력
+    console.log('WPM:', analysis.wpm, '단어 수:', analysis.word_count, '녹음 시간(초):', analysis.speech_duration ?? analysis.duration_sec ?? analysis.duration);
     
     // 필러 단어 목록 생성
     let fillerWordsHtml = '';
@@ -260,6 +277,10 @@ function displayAnalysis(analysis) {
                                         <span class="display-5 fw-bold me-2">${analysis.wpm || 0}</span>
                                         <span class="text-muted">WPM</span>
                                     </div>
+                                    <ul class="list-unstyled mb-2">
+                                        <li><span class="badge bg-info text-dark">총 단어 수: ${analysis.word_count ?? 'N/A'}개</span></li>
+                                        <li><span class="badge bg-secondary">녹음 시간: ${(analysis.speech_duration ?? analysis.duration_sec ?? analysis.duration ?? 'N/A')}초</span></li>
+                                    </ul>
                                     <p class="mb-0 text-muted">${analysis.wpm_feedback || '분석 중...'}</p>
                                 </div>
                             </div>
