@@ -78,6 +78,9 @@ jobs:
             docker run -d --restart always --name speech-feedback-service-fastapi \
               -p 5000:5000 \
               -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
+              -e MONGO_URI=mongodb://mongo:27017/ \
+              -e DB_NAME=speech_feedback \
+              -e COLLECTION_NAME=analysis_results \
               ${{ env.FASTAPI_DOCKER_IMAGE_NAME }}:latest
               
             docker run -d --restart always --name speech-feedback-service-node \
