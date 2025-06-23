@@ -25,12 +25,13 @@ services:
       - "5000:5000"
     networks:
       - app-network
-    # 환경변수는 .env 파일에서 로드
-    env_file:
-      - ./api/.env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+      - DB_NAME=speech_feedback
+      - COLLECTION_NAME=analysis_results
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     depends_on:
       - mongo
-    command: ["/bin/sh", "-c", "printenv"] # 디버깅용
 
   mongo:
     image: mongo:6.0
