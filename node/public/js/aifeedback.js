@@ -156,7 +156,7 @@ async function requestTextAnalysis(text, startTime, endTime) {
         end_time: endTime / 1000
     };
 
-    const response = await fetch('http://localhost:5000/api/analyze', {
+    const response = await fetch('http://13.213.77.9:5000/api/analyze', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
