@@ -156,7 +156,7 @@ async function requestTextAnalysis(text, startTime, endTime) {
         end_time: endTime / 1000
     };
 
-    const response = await fetch('//13.213.77.9:5000/api/analyze', {
+    const response = await fetch('https://alb.seoyoung.store/api/analyze', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
