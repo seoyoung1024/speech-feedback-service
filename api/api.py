@@ -16,9 +16,6 @@ import boto3
 import re
 from dotenv import load_dotenv
 
-
-DB_NAME = os.getenv("DB_NAME")
-
 # 환경변수 로드
 load_dotenv(dotenv_path="/api/.env")  # 또는 dotenv_path="/app/.env" 로 절대경로
 
