@@ -1,6 +1,71 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 발표 피드백 도우미</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-light py-3">
+    <div class="container">
+      <a class="navbar-brand fw-bold fs-3" href="#">Speechy<span class="text-primary">AI</span></a>
+      <ul class="navbar-nav ms-auto align-items-center gap-3">
+        <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">About</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Features</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80" alt="AI Speech Feedback" class="hero-img mb-4" style="height: 340px;">
+    <h1 class="section-title">Find And Improve<br> Your <span class="text-primary">Speech Experience</span></h1>
+    <p class="section-desc">음성 인식과 AI 분석으로 발표를 <strong>실시간</strong>으로 피드백 받으세요.<br>발표력, 속도, 필러워드 등 다양한 항목을 한눈에 확인!</p>
+  </section>
+
+  <!-- 메인 CTA만 남기고 녹음/분석 관련 UI 제거 -->
+  <div class="container text-center mt-4 mb-5">
+    <a href="aifeedback.html" class="btn btn-primary btn-lg px-5 py-3 mt-2 shadow">AI 발표 시작하기 <i class="bi bi-arrow-right ms-2"></i></a>
+  </div>
+
+  <!-- 기능 섹션 (글래스모피즘 카드) -->
+  <section class="glass-section mt-5 mb-5" id="features">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="feature-glass text-center h-100">
+          <i class="bi bi-speedometer2"></i>
+          <h4 class="fw-bold mt-2">실시간 발화 속도</h4>
+          <p>발표 속도를 AI가 분석하여<br>현재의 말 속도가 얼마인지 확인할 수 있습니다.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-glass text-center h-100">
+          <i class="bi bi-chat-dots"></i>
+          <h4 class="fw-bold mt-2">필러 단어 감지</h4>
+          <p>"음, 어, 그" 등<br>불필요한 습관어를 AI가 캐치!</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-glass text-center h-100">
+          <i class="bi bi-robot"></i>
+          <h4 class="fw-bold mt-2">AI 피드백</h4>
+          <p>발표력·전달력까지<br>Gemini 기반 AI가 코칭합니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
+
+<html lang="ko">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Speech Coach - 발표 피드백 서비스</title>
@@ -10,96 +75,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- 헤더 네비게이션 (심플/미래지향) -->
-    <nav class="navbar navbar-dark" style="background: transparent; box-shadow: none;">
-      <div class="container-fluid px-4 py-2 d-flex align-items-center justify-content-between">
-        <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" style="font-family: 'Orbitron', sans-serif; font-size: 2rem; color: #7fc1ff; letter-spacing: 0.02em;" href="#">
-          <i class="bi bi-robot"></i>
-          AI Speech Coach
-        </a>
-        <div>
-          <a href="#features" class="btn btn-link text-light me-2">기능</a>
-          <a href="#how-it-works" class="btn btn-link text-light me-2">사용법</a>
-          <a href="aifeedback.html" class="btn ai-cta-btn">실시간 발표 시작</a>
-        </div>
-      </div>
-    </nav>
-
-    <!-- 히어로 섹션 (AI/음성 모티프, 애니메이션) -->
-    <section class="ai-hero">
-      <div class="ai-glow"></div>
-      <div class="ai-motif">
-        <i class="bi bi-mic-fill"></i>
-      </div>
-      <h1>AI 발표 피드백 서비스</h1>
-      <p>AI가 실시간으로 여러분의 발표를 듣고, <br>속도·필러·전달력까지 <span style="color:#7fc1ff;font-weight:bold;">맞춤 피드백</span>을 제공합니다.<br>이제 발표 연습, AI와 함께하세요!</p>
-      <a href="aifeedback.html" class="ai-cta-btn mt-2">AI 발표 시작하기 <i class="bi bi-arrow-right ms-2"></i></a>
-    </section>
-
-    <!-- 기능 섹션 (글래스모피즘 카드) -->
-    <section class="glass-section mt-5 mb-5" id="features">
-      <div class="row g-4">
-        <div class="col-md-4">
-          <div class="feature-glass text-center h-100">
-            <i class="bi bi-speedometer2"></i>
-            <h4 class="fw-bold mt-2">실시간 발화 속도</h4>
-            <p>발표 속도를 AI가 분석하여<br>최적의 WPM을 안내합니다.</p>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="feature-glass text-center h-100">
-            <i class="bi bi-chat-dots"></i>
-            <h4 class="fw-bold mt-2">필러 단어 감지</h4>
-            <p>"음, 어, 그" 등<br>불필요한 습관어를 AI가 캐치!</p>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="feature-glass text-center h-100">
-            <i class="bi bi-robot"></i>
-            <h4 class="fw-bold mt-2">AI 맞춤 피드백</h4>
-            <p>전문가처럼, AI가<br>구체적이고 긍정적인 코칭을 드립니다.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 사용 방법 (타임라인 스타일) -->
-    <section class="glass-section" id="how-it-works">
-      <h2 class="fw-bold text-center mb-4" style="color:#7fc1ff;">사용 방법</h2>
-      <div class="row g-4 justify-content-center">
-        <div class="col-md-3">
-          <div class="feature-glass text-center">
-            <div class="mb-3"><i class="bi bi-mic"></i></div>
-            <h5 class="fw-bold">1. 마이크 허용</h5>
-            <p>접근 권한을 허용하고, AI와 함께 연습을 시작하세요.</p>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="feature-glass text-center">
-            <div class="mb-3"><i class="bi bi-graph-up"></i></div>
-            <h5 class="fw-bold">2. 발표 녹음</h5>
-            <p>자연스럽게 말하면 AI가 실시간으로 분석합니다.</p>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="feature-glass text-center">
-            <div class="mb-3"><i class="bi bi-lightbulb"></i></div>
-            <h5 class="fw-bold">3. AI 피드백</h5>
-            <p>발표 후, AI가 준비한<br>맞춤형 코칭과 통계 결과를 확인하세요.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA 섹션 -->
-    <section class="text-center mt-5">
-      <a href="aifeedback.html" class="ai-cta-btn" style="font-size:1.4rem;">지금 바로 AI 발표 연습 시작</a>
-    </section>
-
     <!-- 푸터 -->
     <footer class="footer-ai text-center">
       <div>
-        <i class="bi bi-robot"></i> AI Speech Coach &copy; 2025 | Made with <span style="color:#ffb6b6">&#10084;</span> for Presenters
+        <i class="bi bi-robot"></i> AI Speech Coach &copy; 2025 | Made with </span> for Presenters
       </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
