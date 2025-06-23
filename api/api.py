@@ -17,7 +17,7 @@ import re
 from dotenv import load_dotenv
 
 # 환경변수 로드
-load_dotenv(dotenv_path="/api/.env")  # 또는 dotenv_path="/app/.env" 로 절대경로
+load_dotenv()  # .env 파일에서 환경변수 로드
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
