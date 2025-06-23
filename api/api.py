@@ -11,13 +11,8 @@ from pydantic import BaseModel
 from pymongo import MongoClient
 from bson import ObjectId
 from config import FILLER_WORDS, IDEAL_WPM, SLOW_THRESHOLD, FAST_THRESHOLD
-from dotenv import load_dotenv
 import boto3
 import re
-from dotenv import load_dotenv
-
-# 환경변수 로드
-load_dotenv()  # .env 파일에서 환경변수 로드
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")

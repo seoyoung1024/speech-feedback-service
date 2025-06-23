@@ -30,6 +30,7 @@ services:
       - ./api/.env
     depends_on:
       - mongo
+    command: ["/bin/sh", "-c", "printenv"] # 디버깅용
 
   mongo:
     image: mongo:6.0
