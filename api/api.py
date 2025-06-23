@@ -14,9 +14,13 @@ from config import FILLER_WORDS, IDEAL_WPM, SLOW_THRESHOLD, FAST_THRESHOLD
 from dotenv import load_dotenv
 import boto3
 import re
+from dotenv import load_dotenv
+
+
+DB_NAME = os.getenv("DB_NAME")
 
 # 환경변수 로드
-load_dotenv()
+load_dotenv(dotenv_path="/api/.env")  # 또는 dotenv_path="/app/.env" 로 절대경로
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
