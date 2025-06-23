@@ -1,4 +1,4 @@
-name: Deploy Full Stack App to EC2
+name: Deploy Full Stack App to EC2Add commentMore actions
 
 on:
   push:
@@ -61,17 +61,28 @@ jobs:
           key: ${{ env.EC2_KEY }}
           port: ${{ secrets.PORT }}
           script: |
-            echo "--- Setting up environment variables ---"
+            # 환경 변수 설정
             export GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
+            
+            echo "--- Pulling Latest App Image ---"
+            docker pull ${{ env.FASTAPI_DOCKER_IMAGE_NAME }}:latest
+            docker pull ${{ env.NODE_DOCKER_IMAGE_NAME }}:latest
 
-            echo "--- Pulling Latest Docker images ---"
-            docker-compose -f ~/docker-compose.yaml pull
-
-            echo "--- Stopping and removing old containers ---"
-            docker-compose -f ~/docker-compose.yaml down
-
-            echo "--- Starting new containers with Docker Compose ---"
-            docker-compose -f ~/docker-compose.yaml up -d
-
-            echo "--- Cleaning up unused Docker resources ---"
-            docker system prune -af
+            echo "--- Stopping and Removing Old App Container ---"
+            docker stop speech-feedback-service-fastapi || true 
+            docker rm speech-feedback-service-fastapi || true 
+            docker stop speech-feedback-service-node || true 
+            docker rm speech-feedback-service-node || true 
+            
+            echo "--- Running New App Container ---"
+            docker run -d --restart always --name speech-feedback-service-fastapi \
+              -p 5000:5000 \
+              -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
+              ${{ env.FASTAPI_DOCKER_IMAGE_NAME }}:latest
+              
+            docker run -d --restart always --name speech-feedback-service-node \
+              -p 3000:3000 \
+              ${{ env.NODE_DOCKER_IMAGE_NAME }}:latest
+                      
+            echo "--- Cleaning up unused Docker images ---"
+            docker system prune -f
