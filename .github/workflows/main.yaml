@@ -13,6 +13,7 @@ env:
   EC2_HOST: ${{ secrets.HOST }}
   EC2_USERNAME: ${{ secrets.USERNAME }}
   EC2_KEY: ${{ secrets.KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY}}
 
 jobs:
   build-and-deploy:
