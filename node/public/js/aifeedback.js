@@ -212,8 +212,8 @@ function toggleButtons(isRecording) {
 // 분석 결과 표시 함수
 function displayAnalysis(analysis) {
     console.log('분석 결과 전체:', analysis);
-    // WPM, 단어 수, 녹음 시간 등 분석값을 콘솔에도 상세히 출력
-    console.log('WPM:', analysis.wpm, '단어 수:', analysis.word_count, '녹음 시간(초):', analysis.speech_duration ?? analysis.duration_sec ?? analysis.duration);
+    // SPM, 단어 수, 녹음 시간 등 분석값을 콘솔에도 상세히 출력
+    console.log('SPM:', analysis.spm, '단어 수:', analysis.word_count, '녹음 시간(초):', analysis.speech_duration ?? analysis.duration_sec ?? analysis.duration);
     
     // 필러 단어 목록 생성
     let fillerWordsHtml = '';
@@ -274,8 +274,8 @@ function displayAnalysis(analysis) {
                                         발화 속도
                                     </h5>
                                     <div class="d-flex align-items-baseline mb-2">
-                                        <span class="display-5 fw-bold me-2">${analysis.wpm || 0}</span>
-                                        <span class="text-muted">WPM</span>
+                                        <span class="display-5 fw-bold me-2">${analysis.spm || 0}</span>
+                                        <span class="text-muted">SPM</span>
                                     </div>
                                     <ul class="list-unstyled mb-2">
                                         <li><span class="badge bg-info text-dark">총 단어 수: ${analysis.word_count ?? 'N/A'}개</span></li>
@@ -283,7 +283,7 @@ function displayAnalysis(analysis) {
                                         <li><span class="badge bg-secondary">녹음 시간: ${(analysis.speech_duration ?? analysis.duration_sec ?? analysis.duration ?? 'N/A')}초</span></li>
                                         <li><span class="badge bg-success">SPM(음절/분): ${analysis.spm ?? 'N/A'}</span></li>
                                     </ul>
-                                    <p class="mb-0 text-muted">${analysis.wpm_feedback || '분석 중...'}</p>
+                                    <p class="mb-0 text-muted">${analysis.spm_feedback || '분석 중...'}</p>
                                 </div>
                             </div>
                         </div>
