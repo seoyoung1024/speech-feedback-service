@@ -155,7 +155,7 @@ class SpeechAnalyzer:
                 "session_id": self.session_id,
                 "analysis": {
                     "word_count": self.word_count,
-                    "wpm": round(wpm, 2),
+                    "spm": round(spm, 2),
                     "filler_words": used_fillers,
                     "total_fillers": total_fillers,
                     "speech_duration": round(elapsed_time, 2),
@@ -168,10 +168,9 @@ class SpeechAnalyzer:
         return {
             "session_id": self.session_id,
             "word_count": self.word_count,
-            "wpm": wpm,
             "spm": spm,
             "syllable_count": syllable_count,
-            "wpm_feedback": wpm_feedback,
+            "spm_feedback": spm_feedback,
             "filler_words": used_fillers,
             "total_fillers": total_fillers,
             "speech_duration": round(elapsed_time, 2),
@@ -197,8 +196,8 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
     """Gemini를 사용하여 분석 결과에 대한 전문가 같은 피드백 생성"""
     try:
         # 기본 분석 결과 추출
-        wpm = analysis_result.get('wpm', 0)
-        wpm_feedback = analysis_result.get('wpm_feedback', '')
+        spm = analysis_result.get('spm', 0)
+        spm_feedback = analysis_result.get('spm_feedback', '')
         total_fillers = analysis_result.get('total_fillers', 0)
         filler_words = {k: v for k, v in analysis_result.get('filler_words', {}).items() if v > 0}
         speech_duration = analysis_result.get('speech_duration', 0)
@@ -206,11 +205,15 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
         word_count = analysis_result.get('word_count', 0)
         
         # 발화 속도 평가
-        speed_assessment = "적절함"
-        if wpm < 100:
+        if spm < 150:
             speed_assessment = "다소 느림"
-        elif wpm > 180:
+        elif 150 <= spm <= 180:
+            speed_assessment = "적절함"
+        elif 180 < spm <= 250:
             speed_assessment = "다소 빠름"
+        else:
+            speed_assessment = "매우 빠름"
+
         
         # 필러 단어 사용량 평가
         filler_assessment = "적절함"
@@ -230,8 +233,8 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
         {full_text}
         
         [분석 결과]
-        1. 발화 속도: {wpm:.1f} WPM ({speed_assessment})
-           - {wpm_feedback}
+        1. 발화 속도: {spm:.1f} SPM ({speed_assessment})
+           - {spm_feedback}
 
         2. 필러 단어 사용량: {total_fillers}회 ({filler_assessment})
         """
@@ -250,7 +253,7 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
         다음 내용을 고려하여 한국어로 전문가 같은 피드백을 제공해주세요:
         
         1. 발화 속도 평가:
-           - 현재 속도({wpm:.1f} WPM)가 적절한지 여부
+           - 현재 속도({spm:.1f} SPM)가 적절한지 여부   
            - 청중이 이해하기 좋은 이상적인 발화 속도 제안
            
         2. 필러 단어 사용 분석:
@@ -389,7 +392,7 @@ async def analyze_text(request: TextAnalysisRequest):
         result["text_length"] = len(request.text)
         result["word_count"] = len(request.text.split())
         
-        print(f"[DEBUG] 기본 분석 완료 - 단어 수: {result['word_count']}개, WPM: {result['wpm']:.1f}, 필러: {result['total_fillers']}회")
+        print(f"[DEBUG] 기본 분석 완료 - 단어 수: {result['word_count']}개, SPM: {result['spm']:.1f}, 필러: {result['total_fillers']}회")
 
         # AI 피드백 생성 (요청된 경우에만)
         if request.generate_ai_feedback:

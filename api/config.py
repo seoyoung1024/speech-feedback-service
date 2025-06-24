@@ -4,7 +4,7 @@ FILLER_WORDS = [
     '흠','흠흠', '하', '그', '그그'
 ]
 
-# WPM (Words Per Minute) 기준
-IDEAL_WPM = 150  # 일반적인 대화 속도 (분당 150단어)
-SLOW_THRESHOLD = 120  # 이하 느린 속도
-FAST_THRESHOLD = 180  # 이상 빠른 속도
+# SPM (Syllables Per Minute) 기준
+IDEAL_SPM = 190  # 일반적인 대화 속도 (분당 150음절)
+SLOW_THRESHOLD = 150  # 이하 느린 속도
+FAST_THRESHOLD = 250  # 이상 빠른 속도
