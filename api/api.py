@@ -13,6 +13,7 @@ from bson import ObjectId
 from config import FILLER_WORDS, IDEAL_WPM, SLOW_THRESHOLD, FAST_THRESHOLD
 import boto3
 import re
+import traceback
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
@@ -288,6 +289,7 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
             
     except Exception as e:
         error_msg = f"AI 피드백 생성 중 오류: {str(e)}"
+        print(traceback.format_exc()) 
         print(f"[ERROR] {error_msg}")
         return f"AI 피드백을 생성하는 중 오류가 발생했습니다: {str(e)}"
 

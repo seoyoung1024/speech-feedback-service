@@ -9,7 +9,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - app-network
+      - app_network
     environment:
       - NODE_ENV=production
     depends_on:
@@ -24,7 +24,7 @@ services:
     ports:
       - "5000:5000"
     networks:
-      - app-network
+      - app_network
     environment:
       - MONGO_URI=mongodb://mongo:27017
       - DB_NAME=speech_feedback
@@ -40,6 +40,9 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - app_network
+
 networks:
   app_network:
     driver: bridge
