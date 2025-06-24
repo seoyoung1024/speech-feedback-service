@@ -141,13 +141,13 @@ class SpeechAnalyzer:
         used_fillers = {k: v for k, v in self.filler_counts.items() if v > 0}
         total_fillers = sum(used_fillers.values())
 
-        # 4. WPM 피드백 결정
-        if wpm < SLOW_THRESHOLD:
-            wpm_feedback = "조금 더 빠르게 말씀해보시는 건 어떨까요?"
-        elif wpm > FAST_THRESHOLD:
-            wpm_feedback = "조금 더 천천히, 또박또박 말씀해보세요."
+        # 4. SPM 피드백 결정
+        if spm < SLOW_THRESHOLD:
+            spm_feedback = "조금 더 빠르게 말씀해보시는 건 어떨까요?"
+        elif spm > FAST_THRESHOLD:
+            spm_feedback = "조금 더 천천히, 또박또박 말씀해보세요."
         else:
-            wpm_feedback = "적절한 속도로 말하고 계십니다."
+            spm_feedback = "적절한 속도로 말하고 계십니다."
 
         s3_url = None
         if s3_client:
