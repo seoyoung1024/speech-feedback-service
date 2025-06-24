@@ -29,7 +29,7 @@ app = FastAPI()
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 배포 시 특정 도메인으로 제한 필요
+    allow_origins=["https://alb.seoyoung.store"],  # 배포 시 특정 도메인으로 제한 필요
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -288,10 +288,11 @@ async def generate_ai_feedback(analysis_result: dict) -> str:
             return "죄송합니다. AI 피드백을 생성하는 데 실패했습니다. 다시 시도해주세요."
             
     except Exception as e:
-        error_msg = f"AI 피드백 생성 중 오류: {str(e)}"
         print(traceback.format_exc()) 
-        print(f"[ERROR] {error_msg}")
-        return f"AI 피드백을 생성하는 중 오류가 발생했습니다: {str(e)}"
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI 피드백을 생성하는 중 오류가 발생했습니다: {str(e)}"
+        )
 
 # ====================
 # 📌 세션 & DB 관리
