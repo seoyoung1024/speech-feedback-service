@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel
 from pymongo import MongoClient
 from bson import ObjectId
-from config import FILLER_WORDS, IDEAL_WPM, SLOW_THRESHOLD, FAST_THRESHOLD
+from config import FILLER_WORDS, IDEAL_SPM, SLOW_THRESHOLD, FAST_THRESHOLD
 import boto3
 import re
 import traceback
