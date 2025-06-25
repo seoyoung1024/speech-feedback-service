@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const axios = require('axios');
 
 // FastAPI 서버 설정
-const FASTAPI_URL = 'http://localhost:5000';
+const FASTAPI_URL = 'http://api:5000';
 
 // 라우트
 router.get('/', (req, res) => {
