@@ -30,7 +30,7 @@ secret.json
 **/.venv
 **/__pycache__/
 **/ secret.json
-**/*.mp4
+neo/*.mp4
 **/*.mp3
 
 **/model.safetensors
