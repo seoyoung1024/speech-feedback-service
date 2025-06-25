@@ -115,27 +115,18 @@
     <!-- </style>
 </head>
 <body>
-    <!-- 네비게이션 바 -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="index.html" style="color: var(--primary-color); font-size: 1.5rem;">
-                <i class="bi bi-mic-fill me-2"></i>발표가 체질
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#features">기능소개</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#how-it-works">사용방법</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+  
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-light py-3">
+  <div class="container">
+    <a class="navbar-brand fw-bold fs-3" href="index.html">Speechy<span class="text-primary">AI</span></a>
+    <ul class="navbar-nav ms-auto align-items-center gap-3 style="font-weight: 500;">
+      <li class="nav-item"><a class="nav-link active" href="index.html">Home</a></li>
+      <li class="nav-item"><a class="nav-link" href="aifeedback.html">AI 피드백</a></li>
+      <li class="nav-item"><a class="nav-link" href="http://13.250.114.125:8000/">AI 유사도 분석</a></li>
+    </ul>
+  </div>
+</nav>
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-lg-10">
@@ -149,7 +140,7 @@
                         <!-- 녹음 컨트롤 -->
                         <div class="text-center mb-5">
                             <div class="d-flex justify-content-center flex-wrap gap-3 mb-3">
-                                <button id="startButton" class="btn btn-primary btn-lg">
+                                <button id="startButton" class="btn btn-primary btn-lg" style="background: linear-gradient(90deg, #6c63ff, #4a42e6);">
                                     <i class="bi bi-mic-fill me-2"></i> 녹음 시작
                                 </button>
                                 <button id="stopButton" class="btn btn-danger btn-lg" disabled>
@@ -170,7 +161,7 @@
                                 <div id="transcript" class="p-3 bg-white rounded">
                                     <div class="text-muted text-center py-4">
                                         <i class="bi bi-mic" style="font-size: 2rem;"></i>
-                                        <p class="mt-2 mb-0">녹음 시작 버튼을 누르고 말씀해주세요.</p>
+                                        <p class="mt-2 mb-0" >녹음 시작 버튼을 누르고 말씀해주세요.</p>
                                     </div>
                                 </div>
                             </div>
