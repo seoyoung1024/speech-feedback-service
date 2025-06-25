@@ -10,6 +10,7 @@ env:
   DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
   FASTAPI_DOCKER_IMAGE_NAME: seoyoung1024/speech-feedback-service-fastapi
   NODE_DOCKER_IMAGE_NAME: seoyoung1024/speech-feedback-service-node
+  MONGO_DOCKER_IMAGE_NAME: seoyoung1024/speech-feedback-service-mongo
   EC2_HOST: ${{ secrets.HOST }}
   EC2_USERNAME: ${{ secrets.USERNAME }}
   EC2_KEY: ${{ secrets.KEY }}
@@ -68,12 +69,16 @@ jobs:
             echo "--- Pulling Latest App Image ---"
             docker pull ${{ env.FASTAPI_DOCKER_IMAGE_NAME }}:latest
             docker pull ${{ env.NODE_DOCKER_IMAGE_NAME }}:latest
+            docker pull ${{ env.MONGO_DOCKER_IMAGE_NAME }}:latest
 
             echo "--- Stopping and Removing Old App Container ---"
             docker stop speech-feedback-service-fastapi || true 
             docker rm speech-feedback-service-fastapi || true 
             docker stop speech-feedback-service-node || true 
             docker rm speech-feedback-service-node || true 
+            docker stop speech-feedback-service-mongo || true 
+            docker rm speech-feedback-service-mongo || true 
+            
             
             echo "--- Running New App Container ---"
             docker run -d --restart always --name speech-feedback-service-fastapi \
@@ -87,6 +92,11 @@ jobs:
             docker run -d --restart always --name speech-feedback-service-node \
               -p 3000:3000 \
               ${{ env.NODE_DOCKER_IMAGE_NAME }}:latest
+
+            docker run -d --restart always --name speech-feedback-service-mongo \
+              -p 27017:27017 \
+              -v mongo_data:/data/db \
+              mongo:6.0
                       
             echo "--- Cleaning up unused Docker images ---"
             docker system prune -f
